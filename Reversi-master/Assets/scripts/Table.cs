@@ -41,36 +41,39 @@ public class Table : MonoBehaviour
         {
             Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
             RaycastHit raycastHit;
-
             if (!Physics.Raycast(ray, out raycastHit))
             {
                 return;
             }
-
             GameObject parent = raycastHit.collider.gameObject.transform.parent.gameObject;
-
             if (parent.layer != LayerMask.NameToLayer(_gameManager.CanSpawn))
             {
                 return;
             }
-
             Vector3 hitPosition = raycastHit.collider.gameObject.transform.position;
             Vector3 position = new Vector3(hitPosition.x, ChipPosY, hitPosition.z);
             int posX = Mathf.FloorToInt(hitPosition.x) + 3;
             int posZ = (Mathf.FloorToInt(hitPosition.z) - 2) * -1;
-            switch (_gameManager.IsBlackTurn)
+            SpawnModel spawnChipModel = new SpawnModel(parent, position, posX, posZ, _gameManager.None);
+            if (_gameManager.IsBlackTurn)
             {
-                case true:
-                    ParametersToSpawnChip(_blackChip, parent, position, false, posX, posZ, _gameManager.None, _gameManager.Player1, _gameManager.Player2);
-                    _gameManager.NumOfBlack++;
-                    _gameManager.CurrentPlayerColor = Chip.Currcolor2;
-                    break;
-                case false:
-                    ParametersToSpawnChip(_whiteChip, parent, position, true, posX, posZ, _gameManager.None, _gameManager.Player2, _gameManager.Player1);
-                    _gameManager.NumOfWhite++;
-                    _gameManager.CurrentPlayerColor = Chip.Currcolor1;
-                    break;
+                spawnChipModel.Chip = _blackChip;
+                spawnChipModel.IsBlack = false;
+                spawnChipModel.Current = _gameManager.Player1;
+                spawnChipModel.Next = _gameManager.Player2;
+                _gameManager.NumOfBlack++;
+                _gameManager.CurrentPlayerColor = Chip.Currcolor2;
             }
+            else
+            {
+                spawnChipModel.Chip = _whiteChip;
+                spawnChipModel.IsBlack = true;
+                spawnChipModel.Current = _gameManager.Player2;
+                spawnChipModel.Next = _gameManager.Player1;
+                _gameManager.NumOfWhite++;
+                _gameManager.CurrentPlayerColor = Chip.Currcolor1;
+            }
+            ParametersToSpawn(spawnChipModel);
             _gameManager.PlayersScore();
         }
     }
@@ -83,14 +86,29 @@ public class Table : MonoBehaviour
             {
                 if (_gameManager.Field[posX, posZ].layer == LayerMask.NameToLayer(currentLayer))
                 {
-                    ForSupport(posX, posZ, PreviousField, CurrentField, CurrentField, CurrentField, nextLayer, currentLayer);// x-- support check
-                    ForSupport(posX, posZ, NextField, CurrentField, _length, CurrentField, nextLayer, currentLayer);// x++ support check
-                    ForSupport(posX, posZ, CurrentField, PreviousField, CurrentField, CurrentField, nextLayer, currentLayer);// z-- support check
-                    ForSupport(posX, posZ, CurrentField, NextField, CurrentField, _length, nextLayer, currentLayer);// z++ check
-                    ForSupport(posX, posZ, PreviousField, PreviousField, CurrentField, CurrentField, nextLayer, currentLayer);// x-- z-- support check
-                    ForSupport(posX, posZ, NextField, NextField, _length, _length, nextLayer, currentLayer);// x++ z++ support check
-                    ForSupport(posX, posZ, PreviousField, NextField, CurrentField, _length, nextLayer, currentLayer);// x++ z-- support check
-                    ForSupport(posX, posZ, NextField, PreviousField, _length, CurrentField, nextLayer, currentLayer);// x-- z++ support check
+                    HelperModel helperModel = new HelperModel(posX, posZ, nextLayer, currentLayer);
+                    helperModel.ForX = PreviousField;
+                    helperModel.ForZ = CurrentField;
+                    helperModel.ResultX = CurrentField;
+                    helperModel.ResultZ = CurrentField;
+                    Supprot(helperModel);
+                    helperModel.ForZ = PreviousField;
+                    Supprot(helperModel);
+                    helperModel.ForX = CurrentField;
+                    Supprot(helperModel);
+                    helperModel.ForX = NextField;
+                    helperModel.ResultX = _length;
+                    Supprot(helperModel);
+                    helperModel.ForZ = CurrentField;
+                    Supprot(helperModel);
+                    helperModel.ForZ = NextField;
+                    helperModel.ResultZ = _length;
+                    Supprot(helperModel);
+                    helperModel.ForX = CurrentField;
+                    helperModel.ResultX = CurrentField;
+                    Supprot(helperModel);
+                    helperModel.ForX = PreviousField;
+                    Supprot(helperModel);
                 }
                 FieldHighlight(Color.cyan, _gameManager.CanSpawn);
             }
@@ -118,34 +136,49 @@ public class Table : MonoBehaviour
 
     private void CheckFields(string noneLayer, string currentLayer, int posX, int posZ)
     {
-        Fields(posX, posZ, PreviousField, CurrentField, CurrentField, CurrentField, noneLayer, currentLayer);// x-- check
-        Fields(posX, posZ, NextField, CurrentField, _length, CurrentField, noneLayer, currentLayer);// x++ check
-        Fields(posX, posZ, CurrentField, PreviousField, CurrentField, CurrentField, noneLayer, currentLayer);// z-- check
-        Fields(posX, posZ, CurrentField, NextField, CurrentField, _length, noneLayer, currentLayer);// z++ check
-        Fields(posX, posZ, PreviousField, PreviousField, CurrentField, CurrentField, noneLayer, currentLayer);// x-- z-- check
-        Fields(posX, posZ, NextField, NextField, _length, _length, noneLayer, currentLayer);// x++ z++ check
-        Fields(posX, posZ, NextField, PreviousField, _length, CurrentField, noneLayer, currentLayer);// x++ z-- check
-        Fields(posX, posZ, PreviousField, NextField, CurrentField, _length, noneLayer, currentLayer);// x-- z++ check
+        HelperModel helperModel = new HelperModel(posX, posZ, noneLayer, currentLayer);
+        helperModel.ForX = PreviousField;
+        helperModel.ForZ = CurrentField;
+        helperModel.ResultX = CurrentField;
+        helperModel.ResultZ = CurrentField;
+        Fields(helperModel);
+        helperModel.ForZ = PreviousField;
+        Fields(helperModel);
+        helperModel.ForX = CurrentField;
+        Fields(helperModel);
+        helperModel.ForX = NextField;
+        helperModel.ResultX = _length;
+        Fields(helperModel);
+        helperModel.ForZ = CurrentField;
+        Fields(helperModel);
+        helperModel.ForZ = NextField;
+        helperModel.ResultZ = _length;
+        Fields(helperModel);
+        helperModel.ForX = CurrentField;
+        helperModel.ResultX = CurrentField;
+        Fields(helperModel); 
+        helperModel.ForX = PreviousField;
+        Fields(helperModel);
     }
 
-    private void Fields(int posX, int posZ, int forX, int forZ, int resultX, int resultZ, string noneLayer, string currentLayer)
+    private void Fields(HelperModel helperModel)
     {
         int x, z;
-        x = posX + forX;
-        z = posZ + forZ;
+        x = helperModel.GetX();
+        z = helperModel.GetZ();
         bool canClose = false;
         _toColor.Clear();
         while (true)
         {
-            if (x * forX > resultX || z * forZ > resultZ)
+            if (helperModel.isBorder(x, z))
             {
                 break;
             }
-            if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(noneLayer))
+            if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(helperModel.NoneLayer))
             {
                 break;
             }
-            else if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(currentLayer))
+            else if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(helperModel.CurrentLayer))
             {
                 canClose = true;
                 break;
@@ -154,30 +187,30 @@ public class Table : MonoBehaviour
             {
                 _toColor.Add(_gameManager.Field[x, z]);
             }
-            x += forX;
-            z += forZ;
+            x += helperModel.ForX;
+            z += helperModel.ForZ;
         }
-        ColorChange(canClose, currentLayer);
+        ColorChange(canClose, helperModel.CurrentLayer);
     }
 
-    private void ForSupport(int posX, int posZ, int forX, int forZ, int resultX, int resultZ, string nextLayer, string currentLayer)
+    private void Supprot(HelperModel helperModel)
     {
         int x, z;
         bool canClose;
-        x = posX + forX;
-        z = posZ + forZ;
+        x = helperModel.GetX();
+        z = helperModel.GetZ();
         canClose = false;
         while (true)
         {
-            if (x * forX > resultX || z * forZ > resultZ)
+            if (helperModel.isBorder(x, z))
             {
                 break;
             }
-            if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(currentLayer))
+            if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(helperModel.CurrentLayer))
             {
                 break;
             }
-            else if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(nextLayer))
+            else if (_gameManager.Field[x, z].layer == LayerMask.NameToLayer(helperModel.NoneLayer))
             {
                 canClose = true;
             }
@@ -189,8 +222,8 @@ public class Table : MonoBehaviour
                 }
                 break;
             }
-            x += forX;
-            z += forZ;
+            x += helperModel.ForX;
+            z += helperModel.ForZ;
         }
     }
 
@@ -203,13 +236,21 @@ public class Table : MonoBehaviour
         Helper(nextLayer, currentlayer);
     }
 
+    private void ParametersToSpawn(SpawnModel spawnModel)
+    {
+        FieldHighlight(_fieldMatereal, _gameManager.None);
+        _toSupport.Clear();
+        ChipSpawn(spawnModel.Chip, _gameManager.ChipsParent, spawnModel.IsBlack, spawnModel.Position, spawnModel.ChipParent);
+        CheckFields(spawnModel.None, spawnModel.Current, spawnModel.PosX, spawnModel.PosZ);
+        Helper(spawnModel.Next, spawnModel.Current);
+    }
+
     private void ColorChange(bool canClose, string currentLayer)
     {
         if (!canClose)
         {
             return;
         }
-
         switch (currentLayer)
         {
             case Player1:
